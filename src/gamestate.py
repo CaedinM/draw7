@@ -7,8 +7,8 @@ from ev_calculator import calculate_ev
 
 class Gamestate:
     
-    DEFAULT_DECK = {0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12}
-    EMPTY_DISCARD_PILE = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0, 11:0, 12:0}
+    DEFAULT_DECK = {0:1, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10, 11:11, 12:12, "+2":1, "+4":1, "+6":1, "+8":1, "+10":1, "2x": 1}
+    EMPTY_DISCARD_PILE = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0, 11:0, 12:0, "+2":0, "+4":0, "+6":0, "+8":0, "+10":0, "2x": 0}
 
     def __init__(self, players):
         # deck
@@ -86,7 +86,8 @@ class Gamestate:
                 # player can be: "active", "busted" or "secured"
                 "status": "active",
                 "score": 0,
-                "hand": []
+                "hand": [],
+                "bonuses": []
                     } for name in self.players
                 }  
         
@@ -101,10 +102,23 @@ class Gamestate:
             if sum(self.deck.values()) == 0:
                 self.reshuffle_deck()
 
-            # update player's stats
-            stats[p]["hand"].append(card)
-            stats[p]["score"] += card
+            # update player's stats if first card is a bonus card
+            if isinstance(card, int):
+                stats[p]["hand"].append(card)
+                stats[p]["score"] += card
+            elif isinstance(card, str):
+                stats[p]["bonuses"].append(card)
+                if card[0] == "+":
+                    stats[p]["score"] += int(card[1:])
             
+        # check if any player has more than 200 points after initial draw
+        for player, name in stats.items():
+            if self.win_check(player, stats[player]["score"]):
+                win_score = self.scores[current_player] + stats[current_player]["score"]
+                print_win_message(current_player, win_score)
+                return "GG"
+
+        
         while round_status == "active":
             # check for the case that every player has chosen to stay
             if all(not player["status"] == "active" for player in stats.values()):
@@ -120,10 +134,13 @@ class Gamestate:
                     -------------------------------------------------
                     Current Hands:"""))
                 for name, player in stats.items():
-                    print(f"{name}: {player['hand']}")
-
+                    if len(player["bonuses"]) > 0:
+                        print(dedent(f"{name}: Hand: {player['hand']}, Bonus Cards: {player['bonuses']}"))
+                    else:
+                        print(dedent(f"{name}: Hand: {player['hand']}"))
+                    
                 # calculate EV before asking for decision
-                ev = calculate_ev(self.deck, stats[current_player]["hand"])
+                ev = calculate_ev(self.deck, stats[current_player]["hand"], stats[current_player]["bonuses"])
                 
                 # display recomendation
                 if ev > 0:
@@ -145,22 +162,40 @@ class Gamestate:
                     if sum(self.deck.values()) == 0:
                         self.reshuffle_deck()
                     
-
-                    if card in stats[current_player]["hand"]:
+                    # if the card is a duplicate, the player's score goes to 0 and status becomes "busted"
+                    if card in stats[current_player]["hand"] or card in stats[current_player]["bonuses"]:
                         stats[current_player]["status"] = "busted"
                         stats[current_player]["score"] = 0
                         print(dedent("BUSTED!"))
                     
+                    # if the card is not a duplicate, we modify their score appropriately
                     else:
-                        stats[current_player]["score"] += card
-                        # if player has more than 200 points...
+                        if card == "2x":
+                            stats[current_player]["score"] *= 2
+                        else: 
+                            if isinstance(card, int):
+                                if "2x" in stats[current_player]["bonuses"]:
+                                    stats[current_player]["score"] += (card * 2)
+                                else:
+                                    stats[current_player]["score"] += card
+                            elif isinstance(card, str):
+                                if "2x" in stats[current_player]["bonuses"]:
+                                    stats[current_player]["score"] += 2 * int(card[1:])
+                                else: 
+                                    stats[current_player]["score"] += int(card[1:])
+
+                        # check if the player has more than 200 points...
                         if self.win_check(current_player, stats[current_player]["score"]):
                             win_score = self.scores[current_player] + stats[current_player]["score"]
                             print_win_message(current_player, win_score)
                             return "GG"
                     
                     # add the card to the player's hand
-                    stats[current_player]["hand"].append(card)
+                    if isinstance(card, int):
+                        stats[current_player]["hand"].append(card)
+                    elif isinstance(card, str):
+                        stats[current_player]["bonuses"].append(card)
+                    
                     # If hand is now at 7 cards, apply 15 pt bonus and end round
                     if len(stats[current_player]["hand"]) >= 7:
                         stats[current_player]["score"] += 15
