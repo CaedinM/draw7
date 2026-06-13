@@ -8,7 +8,7 @@ To help you make the call, Draw7 ships with a built-in **expected-value advisor*
 
 > ### Built by hand, in one day
 >
-> This entire project was written **from scratch in a single day**, and **no AI code-generation tools were used at any point**. 
+> This project was written **from scratch in one day**, and **no AI code-generation tools were used at any point** ...(except for writing this README)
 
 ---
 
