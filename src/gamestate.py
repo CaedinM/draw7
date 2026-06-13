@@ -12,8 +12,8 @@ class Gamestate:
 
     def __init__(self, players):
         # deck
-        self.deck = self.DEFAULT_DECK
-        self.discard_pile = self.EMPTY_DISCARD_PILE
+        self.deck = dict(self.DEFAULT_DECK)
+        self.discard_pile = dict(self.EMPTY_DISCARD_PILE)
         
         # game status
         self.is_game_over = False
@@ -53,7 +53,7 @@ class Gamestate:
         print("deck is empty, reshuffling from discard pile...")
         for card in self.discard_pile:
             self.deck[card] += self.discard_pile[card]
-        discard_pile = self.EMPTY_DISCARD_PILE
+        self.discard_pile = dict(self.EMPTY_DISCARD_PILE)
 
     def print_scores(self):
         print(dedent("""
